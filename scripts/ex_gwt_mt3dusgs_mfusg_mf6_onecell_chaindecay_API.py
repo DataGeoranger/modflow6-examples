@@ -73,7 +73,7 @@ days_per_year = 365.25
 pce_decay_rate = 0.4 / days_per_year
 tce_decay_rate = 0.15 / days_per_year
 dce_decay_rate = 0.1 / days_per_year
-api_concentration_increment = 10.0
+api_concentration_increment = 5.0
 
 
 def get_exe(name):
@@ -218,10 +218,16 @@ def run_mf6_via_api(sim):
     current_time = mf6.get_current_time()
     end_time = mf6.get_end_time()
     while current_time < end_time:
-        for addr in (pce_addr, tce_addr, dce_addr):
-            values = mf6.get_value(addr)
-            values += api_concentration_increment
-            mf6.set_value(addr, values)
+        # before advancing one transport step, so decay happens after the addition.
+        pce_values = mf6.get_value(pce_addr).copy()
+        tce_values = mf6.get_value(tce_addr).copy()
+        dce_values = mf6.get_value(dce_addr).copy()
+        pce_values[:] = pce_values + api_concentration_increment
+        tce_values[:] = tce_values + api_concentration_increment
+        dce_values[:] = dce_values + api_concentration_increment
+        mf6.set_value(pce_addr, pce_values)
+        mf6.set_value(tce_addr, tce_values)
+        mf6.set_value(dce_addr, dce_values)
         mf6.update()
         current_time = mf6.get_current_time()
         pce = float(mf6.get_value(pce_addr)[0])
@@ -230,7 +236,7 @@ def run_mf6_via_api(sim):
         print(
             f"API time {current_time:6.1f} d: "
             f"PCE={pce:10.4f}, TCE={tce:10.4f}, DCE={dce:10.4f} "
-            f"(after adding {api_concentration_increment:g} to all cells at previous time)"
+            f"[PRESTEP_ADD {api_concentration_increment:g} -> THEN DECAY]"
         )
     mf6.finalize()
 
