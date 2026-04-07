@@ -100,6 +100,7 @@ def build_mf6_models(model_ws: Path):
         sim_name=model_ws.name,
         sim_ws=model_ws,
         exe_name=get_exe("mf6"),
+        memory_print_option="ALL",
     )
     flopy.mf6.ModflowTdis(
         sim,
@@ -199,6 +200,8 @@ def build_mf6_models(model_ws: Path):
 
 def write_models(models):
     standard_sim, api_sim = models
+    standard_sim.name_file.memory_print_option = "ALL"
+    api_sim.name_file.memory_print_option = "ALL"
     standard_sim.write_simulation()
     api_sim.write_simulation()
 
@@ -208,11 +211,18 @@ def run_mf6_via_api(sim):
     mf6 = modflowapi.ModflowApi(get_mf6_lib(), working_directory=str(sim_ws))
     mf6.set_int("ISTDOUTTOFILE", 0)
     mf6.initialize(str(sim_ws / "mfsim.nam"))
+    pce_addr = "GWT-PCE/X"
+    tce_addr = "GWT-TCE/X"
+    dce_addr = "GWT-DCE/X"
     current_time = mf6.get_current_time()
     end_time = mf6.get_end_time()
     while current_time < end_time:
         mf6.update()
         current_time = mf6.get_current_time()
+        pce = float(mf6.get_value(pce_addr)[0])
+        tce = float(mf6.get_value(tce_addr)[0])
+        dce = float(mf6.get_value(dce_addr)[0])
+        print(f"API time {current_time:6.1f} d: PCE={pce:10.4f}, TCE={tce:10.4f}, DCE={dce:10.4f}")
     mf6.finalize()
 
 
